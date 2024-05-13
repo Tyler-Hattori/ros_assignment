@@ -104,6 +104,7 @@ brake_bool_topic: "/brake_bool"
 mux_topic: "/mux"
 
 # Topic names of various drive channels
+manual_topic: "/manual_drive_cmd"
 rand_drive_topic: "/rand_drive"
 brake_drive_topic: "/brake"
 nav_drive_topic: "/nav"
