@@ -33,7 +33,7 @@ public:
         // Set up the publisher. This is where you specify the topic of the publisher. The message format corresponds to the drive command format.
         drive_cmd_pub = n.advertise<ackermann_msgs::AckermannDriveStamped>(drive_topic, 10);
 
-        // Set up the subscriber. This is where you specify the topic of the subscriber.
+        // Set up the subscriber. This is where you specify the topic the subscriber listens to.
         // This is also where you specify the name of the function that will run every time a message is received on the subscribed topic. Here it is called key_callback, which is a naming convention.
         key_sub = n.subscribe(key_topic, 1, &ManualControlNode::key_callback, this);
     }
@@ -57,15 +57,12 @@ public:
 
     void publish(double desired_velocity, double desired_steer) {
         // This will take in a desired velocity and steering angle, create a drive message from scratch
-
-        // Make and publish message
         ackermann_msgs::AckermannDriveStamped drive_st_msg;
         ackermann_msgs::AckermannDrive drive_msg;
         std_msgs::Header header;
         drive_msg.speed = desired_velocity;
         drive_msg.steering_angle = desired_steer;
         header.stamp = ros::Time::now();
-
         drive_st_msg.header = header;
 
         // set drive message in drive stamped message
