@@ -1,110 +1,88 @@
 #include <ros/ros.h>
 
-// Publish to a topic with this message type
+// Recall that nodes subscribe to input topics and publish to output topics
+// Topics contain messages, which have specific formatting rules
+// This node will subscribe to keyboard inputs from the user and publish corresponding drive commands
+// Keyboard inputs use the std_msgs::String format
+// Drive commands use the ackermann_msgs::AckermannDriveStamped format
+// You should type std_msgs::String and ackermann_msgs::AckermannDriveStamped into Google to see how the formatting works!
+#include <std_msgs/String.h>
 #include <ackermann_msgs/AckermannDriveStamped.h>
-// AckermannDriveStamped messages include this message type
 #include <ackermann_msgs/AckermannDrive.h>
 
-// Subscribe to a topic with this message type
-#include <nav_msgs/Odometry.h>
-
-// for printing
-#include <iostream>
-
-// for RAND_MAX
-#include <cstdlib>
-
-class RandomWalker {
+class ManualControlNode {
 private:
-    // A ROS node
+    // Create a ROS node object. The name can be anything.
     ros::NodeHandle n;
-
-    // car parameters
-    double max_speed, max_steering_angle;
-
-    // Listen for odom messages
-    ros::Subscriber odom_sub;
-
-    // Publish drive data
-    ros::Publisher drive_pub;
-
-    // previous desired steering angle
-    double prev_angle=0.0;
-
+    // Create a Subscriber object. The name can be anything.
+    ros::Subscriber key_sub;
+    // Create a Publisher object. The name can be anything.
+    ros::Publisher drive_cmd_pub;
 
 public:
-    RandomWalker() {
-        // Initialize the node handle
+    ManualControlNode() { // Think of this as the node's constructor. It is the first thing that runs when you create a ManualControlNode object
+        // Initialize the node
         n = ros::NodeHandle("~");
 
-        // get topic names
-        std::string drive_topic, odom_topic;
-        n.getParam("rand_drive_topic", drive_topic);
-        n.getParam("odom_topic", odom_topic);
+        // Get topic names from the params.yaml file
+        // Using a separate file for defining parameters is useful for keeping all our parameter definitions in one place 
+        std::string drive_topic, key_topic;
+        n.getParam("mux_topic", drive_topic); // It's called mux_topic because the f1tenth simulator uses a mux to toggle between manual and autonomous control
+        n.getParam("keyboard_topic", key_topic);
 
-        // get car parameters
-        n.getParam("max_speed", max_speed);
-        n.getParam("max_steering_angle", max_steering_angle);
+        // Set up the publisher. This is where you specify the topic of the publisher. The message format corresponds to the drive command format.
+        drive_cmd_pub = n.advertise<ackermann_msgs::AckermannDriveStamped>(drive_topic, 10);
 
-        // Make a publisher for drive messages
-        drive_pub = n.advertise<ackermann_msgs::AckermannDriveStamped>(drive_topic, 10);
-
-        // Start a subscriber to listen to odom messages
-        odom_sub = n.subscribe(odom_topic, 1, &RandomWalker::odom_callback, this);
-
-
+        // Set up the subscriber. This is where you specify the topic of the subscriber.
+        // This is also where you specify the name of the function that will run every time a message is received on the subscribed topic. Here it is called key_callback, which is a naming convention.
+        key_sub = n.subscribe(key_topic, 1, &ManualControlNode::key_callback, this);
     }
 
 
-    void odom_callback(const nav_msgs::Odometry & msg) {
-        // publishing is done in odom callback just so it's at the same rate as the sim
+    void key_callback(const std_msgs::String & msg) {
+        // make drive message from keyboard if turned on 
+        if (mux_controller[key_mux_idx]) {
+            // Determine desired velocity and steering angle
+            double desired_velocity = 0.0;
+            double desired_steer = 0.0;
+            
+            bool publish = true;
 
-        // initialize message to be published
-        ackermann_msgs::AckermannDriveStamped drive_st_msg;
-        ackermann_msgs::AckermannDrive drive_msg;
+            if (msg.data == "w") {
+                // Forward
+                desired_velocity = keyboard_speed; // a good speed for keyboard control
+            } else if (msg.data == "s") {
+                // Backwards
+                desired_velocity = -keyboard_speed;
+            } else if (msg.data == "a") {
+                // Steer left and keep speed
+                desired_steer = keyboard_steer_ang;
+                desired_velocity = prev_key_velocity;
+            } else if (msg.data == "d") {
+                // Steer right and keep speed
+                desired_steer = -keyboard_steer_ang;
+                desired_velocity = prev_key_velocity;
+            } else if (msg.data == " ") {
+                // publish zeros to slow down/straighten out car
+            } else {
+                // so that it doesn't constantly publish zeros when you press other keys
+                publish = false;
+            }
 
-        /// SPEED CALCULATION:
-        // set constant speed to be half of max speed
-        drive_msg.speed = max_speed / 2.0;
-
-
-        /// STEERING ANGLE CALCULATION
-        // random number between 0 and 1
-        double random = ((double) rand() / RAND_MAX);
-        // good range to cause lots of turning
-        double range = max_steering_angle / 2.0;
-        // compute random amount to change desired angle by (between -range and range)
-        double rand_ang = range * random - range / 2.0;
-
-        // sometimes change sign so it turns more (basically add bias to continue turning in current direction)
-        random = ((double) rand() / RAND_MAX);
-        if ((random > .8) && (prev_angle != 0)) {
-            double sign_rand = rand_ang / std::abs(rand_ang);
-            double sign_prev = prev_angle / std::abs(prev_angle);
-            rand_ang *= sign_rand * sign_prev;
+            if (publish) {
+                publish_to_drive(desired_velocity, desired_steer);
+                prev_key_velocity = desired_velocity;
+            }
         }
-
-        // set angle (add random change to previous angle)
-        drive_msg.steering_angle = std::min(std::max(prev_angle + rand_ang, -max_steering_angle), max_steering_angle);
-
-        // reset previous desired angle
-        prev_angle = drive_msg.steering_angle;
-
-        // set drive message in drive stamped message
-        drive_st_msg.drive = drive_msg;
-
-        // publish AckermannDriveStamped message to drive topic
-        drive_pub.publish(drive_st_msg);
-
-
     }
 
 }; // end of class definition
 
 
 int main(int argc, char ** argv) {
-    ros::init(argc, argv, "random_walker");
-    RandomWalker rw;
+    ros::init(argc, argv, "node");
+    // Create a ManualControlNode object. It can be named anything.
+    ManualControlNode heyo;
     ros::spin();
     return 0;
 }
