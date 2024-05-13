@@ -20,7 +20,6 @@ private:
 
     // Listen for messages from joystick and keyboard
     ros::Subscriber joy_sub;
-    ros::Subscriber key_sub;
 
     // Publish drive data to simulator/car
     ros::Publisher drive_pub;
@@ -57,11 +56,11 @@ public:
         n = ros::NodeHandle("~");
 
         // get topic names
-        std::string drive_topic, mux_topic, joy_topic, key_topic;
+        std::string drive_topic, mux_topic, joy_topic, manual_topic;
         n.getParam("drive_topic", drive_topic);
         n.getParam("mux_topic", mux_topic);
         n.getParam("joy_topic", joy_topic);
-        n.getParam("keyboard_topic", key_topic);
+        n.getParam("manual_topic", manual_topic);
 
         // Make a publisher for drive messages
         drive_pub = n.advertise<ackermann_msgs::AckermannDriveStamped>(drive_topic, 10);
@@ -71,7 +70,6 @@ public:
 
         // Start subscribers to listen to joy and keyboard messages
         joy_sub = n.subscribe(joy_topic, 1, &Mux::joy_callback, this);
-        key_sub = n.subscribe(key_topic, 1, &Mux::key_callback, this);
 
         // get mux indices
         n.getParam("joy_mux_idx", joy_mux_idx);
@@ -102,6 +100,9 @@ public:
         channels = std::vector<Channel*>();
 
         /// Add new channels here:
+        // Keyboard
+        add_channel(manual_topic, drive_topic, key_mux_idx);
+        
         // Random driver example
         int random_walker_mux_idx;
         std::string rand_drive_topic;
@@ -195,44 +196,6 @@ public:
             publish_to_drive(desired_velocity, desired_steer);
         }
     }
-
-    void key_callback(const std_msgs::String & msg) {
-        // make drive message from keyboard if turned on 
-        if (mux_controller[key_mux_idx]) {
-            // Determine desired velocity and steering angle
-            double desired_velocity = 0.0;
-            double desired_steer = 0.0;
-            
-            bool publish = true;
-
-            if (msg.data == "w") {
-                // Forward
-                desired_velocity = keyboard_speed; // a good speed for keyboard control
-            } else if (msg.data == "s") {
-                // Backwards
-                desired_velocity = -keyboard_speed;
-            } else if (msg.data == "a") {
-                // Steer left and keep speed
-                desired_steer = keyboard_steer_ang;
-                desired_velocity = prev_key_velocity;
-            } else if (msg.data == "d") {
-                // Steer right and keep speed
-                desired_steer = -keyboard_steer_ang;
-                desired_velocity = prev_key_velocity;
-            } else if (msg.data == " ") {
-                // publish zeros to slow down/straighten out car
-            } else {
-                // so that it doesn't constantly publish zeros when you press other keys
-                publish = false;
-            }
-
-            if (publish) {
-                publish_to_drive(desired_velocity, desired_steer);
-                prev_key_velocity = desired_velocity;
-            }
-        }
-    }
-
 
 };
 
