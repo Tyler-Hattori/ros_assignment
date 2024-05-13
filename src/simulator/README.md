@@ -1,10 +1,8 @@
-# THIS REPO IS NO LONGER MAINTAINED
-## If you need a F1TENTH simulation in ROS, we have moved to a containerized ROS 2 simulation here: [https://github.com/f1tenth/f1tenth_gym_ros](https://github.com/f1tenth/f1tenth_gym_ros)
-
 # F1TENTH Racecar Simulator
 
 This is a lightweight 2D simulator of the UPenn F1TENTH Racecar.
 It can be built with ROS, or it can be used as a standalone C++ library.
+The repo is no longer maintained, but it works for ROS Melodic and ROS Noetic.
 
 https://f1tenth.readthedocs.io/en/latest/going_forward/simulator/index.html
 
