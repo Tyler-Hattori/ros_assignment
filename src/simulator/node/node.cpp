@@ -40,42 +40,40 @@ public:
 
 
     void key_callback(const std_msgs::String & msg) {
-        // make drive message from keyboard if turned on 
-        if (mux_controller[key_mux_idx]) {
-            // Determine desired velocity and steering angle
-            double desired_velocity = 0.0;
-            double desired_steer = 0.0;
-            
-            bool publish = true;
+        // set desired speed and steering based on the keyboard input
+        desired_velocity = 0;
+        desired_steering = 0;
 
-            if (msg.data == "w") {
-                // Forward
-                desired_velocity = keyboard_speed; // a good speed for keyboard control
-            } else if (msg.data == "s") {
-                // Backwards
-                desired_velocity = -keyboard_speed;
-            } else if (msg.data == "a") {
-                // Steer left and keep speed
-                desired_steer = keyboard_steer_ang;
-                desired_velocity = prev_key_velocity;
-            } else if (msg.data == "d") {
-                // Steer right and keep speed
-                desired_steer = -keyboard_steer_ang;
-                desired_velocity = prev_key_velocity;
-            } else if (msg.data == " ") {
-                // publish zeros to slow down/straighten out car
-            } else {
-                // so that it doesn't constantly publish zeros when you press other keys
-                publish = false;
-            }
+        //--------- YOUR CODE GOES HERE -----------//
+        
+        // example
+        // if (msg.data == "w") {
+        //    desired_velocity = 2;
+        // }
+        // 
 
-            if (publish) {
-                publish_to_drive(desired_velocity, desired_steer);
-                prev_key_velocity = desired_velocity;
-            }
-        }
+        publish(desired_velocity, desired_steer);
     }
 
+    void publish(double desired_velocity, double desired_steer) {
+        // This will take in a desired velocity and steering angle, create a drive message from scratch
+
+        // Make and publish message
+        ackermann_msgs::AckermannDriveStamped drive_st_msg;
+        ackermann_msgs::AckermannDrive drive_msg;
+        std_msgs::Header header;
+        drive_msg.speed = desired_velocity;
+        drive_msg.steering_angle = desired_steer;
+        header.stamp = ros::Time::now();
+
+        drive_st_msg.header = header;
+
+        // set drive message in drive stamped message
+        drive_st_msg.drive = drive_msg;
+
+        // publish AckermannDriveStamped message to drive topic
+        drive_cmd_pub.publish(drive_st_msg);
+    }
 }; // end of class definition
 
 
